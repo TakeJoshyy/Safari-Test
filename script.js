@@ -11,11 +11,11 @@ const areaData = {
         { location: 'Grass', levels: '45', rate: '5%' },
         { location: 'Grass', levels: '35', rate: '4%' },
         { location: 'Grass', levels: '35', rate: '1%' },
-        { location: 'Rod', levels: '23-38', rate: '40%' },
-        { location: 'Rod', levels: '30-45', rate: '40%' },
-        { location: 'Rod', levels: '23-38', rate: '15%' },
-        { location: 'Rod', levels: '23-53', rate: '4%' },
-        { location: 'Rod', levels: '38-53', rate: '1%' }
+        { location: 'Rod', levels: '23-38', rate: '4%' },
+        { location: 'Rod', levels: '30-45', rate: '15%' },
+        { location: 'Rod', levels: '23-38', rate: '1%' },
+        { location: 'Rod', levels: '23-53', rate: '40%' },
+        { location: 'Rod', levels: '38-53', rate: '40%' }
     ],
     north: [
         { location: 'Grass', levels: '45', rate: '20%' },
@@ -27,11 +27,11 @@ const areaData = {
         { location: 'Grass', levels: '48', rate: '5%' },
         { location: 'Grass', levels: '39', rate: '4%' },
         { location: 'Grass', levels: '42', rate: '1%' },
-        { location: 'Rod', levels: '23-38', rate: '40%' },
-        { location: 'Rod', levels: '30-45', rate: '40%' },
-        { location: 'Rod', levels: '23-38', rate: '15%' },
-        { location: 'Rod', levels: '23-53', rate: '4%' },
-        { location: 'Rod', levels: '38-53', rate: '1%' }
+        { location: 'Rod', levels: '23-38', rate: '4%' },
+        { location: 'Rod', levels: '30-45', rate: '15%' },
+        { location: 'Rod', levels: '23-38', rate: '1%' },
+        { location: 'Rod', levels: '23-53', rate: '40%' },
+        { location: 'Rod', levels: '38-53', rate: '40%' }
     ],
     west: [
         { location: 'Grass', levels: '33', rate: '20%' },
@@ -43,11 +43,11 @@ const areaData = {
         { location: 'Grass', levels: '48', rate: '5%' },
         { location: 'Grass', levels: '38', rate: '4%' },
         { location: 'Grass', levels: '42', rate: '1%' },
-        { location: 'Rod', levels: '23-38', rate: '40%' },
-        { location: 'Rod', levels: '30-45', rate: '40%' },
-        { location: 'Rod', levels: '23-38', rate: '15%' },
-        { location: 'Rod', levels: '23-53', rate: '4%' },
-        { location: 'Rod', levels: '38-53', rate: '1%' }
+        { location: 'Rod', levels: '23-38', rate: '4%' },
+        { location: 'Rod', levels: '30-45', rate: '15%' },
+        { location: 'Rod', levels: '23-38', rate: '1%' },
+        { location: 'Rod', levels: '23-53', rate: '40%' },
+        { location: 'Rod', levels: '38-53', rate: '40%' }
     ],
     east: [
         { location: 'Grass', levels: '36', rate: '20%' },
@@ -59,11 +59,11 @@ const areaData = {
         { location: 'Grass', levels: '38', rate: '5%' },
         { location: 'Grass', levels: '38', rate: '4%' },
         { location: 'Grass', levels: '42', rate: '1%' },
-        { location: 'Rod', levels: '23-38', rate: '40%' },
-        { location: 'Rod', levels: '30-45', rate: '40%' },
-        { location: 'Rod', levels: '23-38', rate: '15%' },
-        { location: 'Rod', levels: '23-53', rate: '4%' },
-        { location: 'Rod', levels: '38-53', rate: '1%' }
+        { location: 'Rod', levels: '23-38', rate: '4%' },
+        { location: 'Rod', levels: '30-45', rate: '15%' },
+        { location: 'Rod', levels: '23-38', rate: '1%' },
+        { location: 'Rod', levels: '23-53', rate: '40%' },
+        { location: 'Rod', levels: '38-53', rate: '40%' }
     ]
 };
 
@@ -78,13 +78,16 @@ const items = [
         // Fetch JSON files
         const pokemonResponse = await fetch('names.json');
         const tmResponse = await fetch('tms.json');
+        const moveTutorResponse = await fetch('moveTutors.json');
         pokemonNames = await pokemonResponse.json();
         tmNames = await tmResponse.json();
+        moveTutorNames = await moveTutorResponse.json();
 
         // Initialize tables
         initializePokemonTables();
         initializeItemsTable();
         initializeTmsTable();
+        initializeMoveTutorsTable(); // <-- Add this line
         initializeFavoritesTable();
         initializePivotsTable();
         loadData();
@@ -179,6 +182,25 @@ function addNewTmRow(input) {
     }
 }
 
+// Initialize Move Tutors table
+function initializeMoveTutorsTable() {
+    const tbody = document.querySelector('#moveTutors-table tbody');
+    tbody.innerHTML = '';
+    moveTutorNames.forEach((moveTutor, idx) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${moveTutor}</td>
+            <td>
+                <select class="tm-select">
+                    <option value="">Select TM</option>
+                    ${tmNames.map(tm => `<option value="${tm}">${tm}</option>`).join('')}
+                </select>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
 // Initialize Favorites table
 function initializeFavoritesTable() {
     const inputs = document.querySelectorAll('#favorites-table .pokemon-input');
@@ -213,7 +235,8 @@ function saveData() {
         items: [],
         tms: [],
         favorites: [],
-        pivots: []
+        pivots: [],
+        moveTutors: []
     };
 
     // Save Pokémon tables
@@ -261,6 +284,15 @@ function saveData() {
             name: row.querySelector('.pokemon-input').value,
             option: row.querySelector('input[type="text"]:not(.pokemon-input)').value,
             ticked: row.querySelector('input[type="checkbox"]').checked
+        });
+    });
+
+    // Save Move Tutors
+    const moveTutorRows = document.querySelectorAll('#moveTutors-table tbody tr');
+    moveTutorRows.forEach(row => {
+        data.moveTutors.push({
+            moveTutor: row.children[0].textContent,
+            tm: row.querySelector('.tm-select').value
         });
     });
 
