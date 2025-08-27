@@ -125,6 +125,13 @@ button:hover {
     background-color: #0056b3;
 }
 
+.data-btn.saved {
+    background-color: #28a745;
+}
+.data-btn.saved:hover {
+    background-color: #218838;
+}
+
 .collapsed > *:not(h2) {
     display: none;
 }

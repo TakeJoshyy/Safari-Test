@@ -73,6 +73,21 @@ const items = [
     'Razer Claw', 'Deep Sea Scale', 'Deep Sea Tooth', 'Dragon Scale', 'Kings Rock', 'Metal Coat', 'Linking Cord'
 ];
 
+function getSharedDataFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const shared = params.get('SharedData');
+    if (shared) {
+        try {
+            const decoded = LZString.decompressFromEncodedURIComponent(shared);
+            localStorage.setItem('safariZoneData', decoded);
+            return true;
+        } catch (e) {
+            alert('Invalid shared data!');
+        }
+    }
+    return false;
+}
+
 (async function () {
     try {
         // Fetch JSON files
@@ -228,76 +243,71 @@ function initializePivotsTable() {
 // Save data to local storage
 function saveData() {
     const data = {
-        center: [],
-        north: [],
-        west: [],
-        east: [],
-        items: [],
-        tms: [],
-        favorites: [],
-        pivots: [],
-        moveTutors: []
+        c: [], // center
+        n: [], // north
+        w: [], // west
+        e: [], // east
+        i: [], // items
+        t: [], // tms
+        f: [], // favorites
+        p: [], // pivots
+        m: []  // moveTutors
     };
 
-    // Save Pokémon tables
-    ['center', 'north', 'west', 'east'].forEach(area => {
+    ['center', 'north', 'west', 'east'].forEach((area, idx) => {
         const rows = document.querySelectorAll(`table[data-area="${area}"] tbody tr`);
         rows.forEach(row => {
-            const rowData = {
-                location: row.children[0].textContent,
-                pokemon: row.querySelector('.pokemon-input').value,
-                levels: row.children[2].textContent, // static
-                rate: row.children[3].textContent,   // static
-                scoutable: row.querySelector('.scout-checkbox').checked,
-                considering: row.querySelector('select[name="considering"]').value
-            };
-            data[area].push(rowData);
+            data[['c','n','w','e'][idx]].push([
+                row.querySelector('.pokemon-input').value,
+                row.querySelector('.scout-checkbox').checked ? 1 : 0,
+                row.querySelector('select[name="considering"]').value === 'Yes' ? 1 : 0
+            ]);
         });
     });
 
-    // Save Items
-    const itemRows = document.querySelectorAll('#items-table tbody tr');
-    itemRows.forEach(row => {
-        data.items.push({
-            item: row.children[0].textContent,
-            quantity: row.querySelector('input[name="quantity"]').value
-        });
+    // Items
+    document.querySelectorAll('#items-table tbody tr').forEach(row => {
+        const qty = row.querySelector('input[name="quantity"]').value;
+        if (qty && qty !== "0") data.i.push([row.children[0].textContent, qty]);
     });
 
-    // Save TMs
-    const tmRows = document.querySelectorAll('#tms-table tbody tr');
-    tmRows.forEach(row => {
+    // TMs
+    document.querySelectorAll('#tms-table tbody tr').forEach(row => {
         const tm = row.querySelector('input').value;
-        if (tm) data.tms.push(tm);
+        if (tm) data.t.push(tm);
     });
 
-    // Save Favorites
-    const favoriteInputs = document.querySelectorAll('#favorites-table .pokemon-input');
-    favoriteInputs.forEach(input => {
-        if (input.value) data.favorites.push(input.value);
+    // Favorites
+    document.querySelectorAll('#favorites-table .pokemon-input').forEach(input => {
+        if (input.value) data.f.push(input.value);
     });
 
-    // Save Pivots
-    const pivotRows = document.querySelectorAll('#pivots-table tbody tr');
-    pivotRows.forEach(row => {
-        data.pivots.push({
-            name: row.querySelector('.pokemon-input').value,
-            option: row.querySelector('input[type="text"]:not(.pokemon-input)').value,
-            ticked: row.querySelector('input[type="checkbox"]').checked
-        });
+    // Pivots
+    document.querySelectorAll('#pivots-table tbody tr').forEach(row => {
+        const nameInput = row.querySelector('.pokemon-input');
+        const optionInput = row.querySelector('input[type="text"]:not(.pokemon-input)');
+        const tickedInput = row.querySelector('input[type="checkbox"]');
+        if (nameInput && nameInput.value) {
+            data.p.push([
+                nameInput.value,
+                optionInput ? optionInput.value : '',
+                tickedInput ? (tickedInput.checked ? 1 : 0) : 0
+            ]);
+        }
     });
 
-    // Save Move Tutors
-    const moveTutorRows = document.querySelectorAll('#moveTutors-table tbody tr');
-    moveTutorRows.forEach(row => {
-        data.moveTutors.push({
-            moveTutor: row.children[0].textContent,
-            tm: row.querySelector('.tm-select').value
-        });
+    // Move Tutors
+    document.querySelectorAll('#moveTutors-table tbody tr').forEach(row => {
+        const tm = row.querySelector('.tm-select').value;
+        if (tm) data.m.push(tm);
     });
 
     localStorage.setItem('safariZoneData', JSON.stringify(data));
-    alert('Data saved!');
+    const saveBtn = document.querySelector('.data-btn[onclick="saveData()"]');
+    if (saveBtn) {
+        saveBtn.classList.add('saved');
+        setTimeout(() => saveBtn.classList.remove('saved'), 5000);
+    }
 }
 
 // Load data from local storage
@@ -305,22 +315,23 @@ function loadData() {
     const data = JSON.parse(localStorage.getItem('safariZoneData'));
     if (!data) return;
 
-    // Load Pokémon tables
-    ['center', 'north', 'west', 'east'].forEach(area => {
+    // Load Pokémon tables (center, north, west, east)
+    ['c', 'n', 'w', 'e'].forEach((key, idx) => {
+        const area = ['center', 'north', 'west', 'east'][idx];
         const tbody = document.querySelector(`table[data-area="${area}"] tbody`);
         tbody.innerHTML = '';
-        areaData[area].forEach((rowData, idx) => {
+        areaData[area].forEach((rowData, i) => {
             addPokemonRow(tbody, area, rowData.location, rowData.levels, rowData.rate);
         });
         // Fill in saved data
-        if (data[area]) {
+        if (Array.isArray(data[key])) {
             const rows = tbody.querySelectorAll('tr');
-            data[area].forEach((rowData, idx) => {
-                if (rows[idx]) {
-                    rows[idx].querySelector('.pokemon-input').value = rowData.pokemon || '';
-                    rows[idx].querySelector('.scout-checkbox').checked = rowData.scoutable || false;
-                    const select = rows[idx].querySelector('select[name="considering"]');
-                    select.value = rowData.considering || 'No';
+            data[key].forEach((rowData, i) => {
+                if (rows[i]) {
+                    rows[i].querySelector('.pokemon-input').value = rowData[0] || '';
+                    rows[i].querySelector('.scout-checkbox').checked = !!rowData[1];
+                    const select = rows[i].querySelector('select[name="considering"]');
+                    select.value = rowData[2] ? 'Yes' : 'No';
                     toggleRowColor(select);
                 }
             });
@@ -330,36 +341,66 @@ function loadData() {
     // Load Items
     const itemsTbody = document.querySelector('#items-table tbody');
     itemsTbody.innerHTML = '';
-    data.items.forEach(item => {
-        addItemRow(itemsTbody);
-        const row = itemsTbody.lastChild;
-        row.querySelector('input[name="quantity"]').value = item.quantity || '';
+    items.forEach(item => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${item}</td>
+            <td><input type="number" name="quantity" min="0"></td>
+        `;
+        itemsTbody.appendChild(row);
     });
+    if (Array.isArray(data.i)) {
+        data.i.forEach(savedItem => {
+            const idx = items.findIndex(name => name === savedItem[0]);
+            if (idx !== -1) {
+                itemsTbody.children[idx].querySelector('input[name="quantity"]').value = savedItem[1];
+            }
+        });
+    }
 
     // Load TMs
     const tmsTbody = document.querySelector('#tms-table tbody');
     tmsTbody.innerHTML = '';
-    data.tms.forEach(tm => {
-        addTmRow(tmsTbody);
-        tmsTbody.lastChild.querySelector('input').value = tm;
-    });
-    addTmRow(tmsTbody); // Add empty row for new input
+    if (Array.isArray(data.t)) {
+        data.t.forEach(tm => {
+            addTmRow(tmsTbody);
+            tmsTbody.lastChild.querySelector('input').value = tm;
+        });
+    }
+    addTmRow(tmsTbody); // Always add an empty row
 
     // Load Favorites
     const favoriteInputs = document.querySelectorAll('#favorites-table .pokemon-input');
-    data.favorites.forEach((fav, i) => {
-        if (favoriteInputs[i]) favoriteInputs[i].value = fav;
-    });
+    if (Array.isArray(data.f)) {
+        data.f.forEach((fav, i) => {
+            if (favoriteInputs[i]) favoriteInputs[i].value = fav;
+        });
+    }
 
     // Load Pivots
     const pivotRows = document.querySelectorAll('#pivots-table tbody tr');
-    data.pivots.forEach((pivot, i) => {
-        if (pivotRows[i]) {
-            pivotRows[i].querySelector('.pokemon-input').value = pivot.name || '';
-            pivotRows[i].querySelector('input[type="text"]:not(.pokemon-input)').value = pivot.option || '';
-            pivotRows[i].querySelector('input[type="checkbox"]').checked = pivot.ticked || false;
-        }
-    });
+    if (Array.isArray(data.p)) {
+        data.p.forEach((pivot, i) => {
+            if (pivotRows[i]) {
+                pivotRows[i].querySelector('.pokemon-input').value = pivot[0] || '';
+                const optionInput = pivotRows[i].querySelector('input[type="text"]:not(.pokemon-input)');
+                if (optionInput) optionInput.value = pivot[1] || '';
+                const tickedInput = pivotRows[i].querySelector('input[type="checkbox"]');
+                if (tickedInput) tickedInput.checked = !!pivot[2];
+            }
+        });
+    }
+
+    // Load Move Tutors
+    const moveTutorRows = document.querySelectorAll('#moveTutors-table tbody tr');
+    if (Array.isArray(data.m)) {
+        data.m.forEach((tm, i) => {
+            if (moveTutorRows[i]) {
+                const select = moveTutorRows[i].querySelector('.tm-select');
+                if (select) select.value = tm;
+            }
+        });
+    }
 }
 
 // Toggle collapse/expand of area boxes
@@ -376,4 +417,19 @@ function clearData() {
         localStorage.removeItem('safariZoneData');
         location.reload();
     }
+}
+
+function shareData() {
+    saveData();
+    const data = localStorage.getItem('safariZoneData');
+    if (!data) {
+        alert('No data to share!');
+        return;
+    }
+    
+    const compressed = LZString.compressToEncodedURIComponent(data);
+    const url = `${location.origin}${location.pathname}?SharedData=${compressed}`;
+    navigator.clipboard.writeText(url)
+        .then(() => alert('Share link copied to clipboard!'))
+        .catch(() => alert('Could not copy link.'));
 }
