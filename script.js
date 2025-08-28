@@ -90,6 +90,8 @@ function getSharedDataFromUrl() {
 
 (async function () {
     try {
+        getSharedDataFromUrl();
+
         // Fetch JSON files
         const pokemonResponse = await fetch('names.json');
         const tmResponse = await fetch('tms.json');
