@@ -333,19 +333,24 @@ function loadData() {
                 areaStr = areaStr.slice(4);
             }
             areas[areaKeys[i]] = [];
+            const expectedRows = areaData[['center', 'north', 'west', 'east'][i]].length;
             if (areaStr) {
-                areaStr.split(';').forEach((row) => {
-                    if (!row) return;
+                const rows = areaStr.split(';').map(row => {
+                    if (!row) return ['', 0, 0];
                     const parts = row.split('|');
                     const pIdx = parts[0] ? parseInt(parts[0], base) : NaN;
                     const scout = parts[1] === '1' ? 1 : 0;
                     const considering = parts[2] === '1' ? 1 : 0;
-                    areas[areaKeys[i]].push([
-                        getName(pokemonNames, pIdx),
-                        scout,
-                        considering
-                    ]);
+                    return [getName(pokemonNames, pIdx), scout, considering];
                 });
+                // Pad with empty rows if needed
+                while (rows.length < expectedRows) {
+                    rows.push(['', 0, 0]);
+                }
+                areas[areaKeys[i]] = rows;
+            } else {
+                // Fill with empty rows if no data
+                areas[areaKeys[i]] = Array(expectedRows).fill().map(() => ['', 0, 0]);
             }
         }
 
@@ -363,7 +368,9 @@ function loadData() {
                 const [iIdx, qty] = itemStr.split('|');
                 const itemIdx = parseInt(iIdx, itemsBase);
                 const itemQty = parseInt(qty, itemsBase);
-                itemsArr.push([getName(items, itemIdx), itemQty]);
+                if (!isNaN(itemIdx) && !isNaN(itemQty)) {
+                    itemsArr.push([getName(items, itemIdx), itemQty]);
+                }
             });
         }
 
@@ -377,7 +384,10 @@ function loadData() {
         const tmsArr = [];
         if (tmsStr) {
             tmsStr.split(',').forEach(tmIdx => {
-                if (tmIdx !== '') tmsArr.push(getName(tmNames, parseInt(tmIdx, tmsBase)));
+                if (tmIdx !== '') {
+                    const idx = parseInt(tmIdx, tmsBase);
+                    if (!isNaN(idx)) tmsArr.push(getName(tmNames, idx));
+                }
             });
         }
 
@@ -391,7 +401,10 @@ function loadData() {
         const favArr = [];
         if (favsStr) {
             favsStr.split(',').forEach(favIdx => {
-                if (favIdx !== '') favArr.push(getName(pokemonNames, parseInt(favIdx, favsBase)));
+                if (favIdx !== '') {
+                    const idx = parseInt(favIdx, favsBase);
+                    if (!isNaN(idx)) favArr.push(getName(pokemonNames, idx));
+                }
             });
         }
 
@@ -410,11 +423,7 @@ function loadData() {
                 const pIdx = parts[0] ? parseInt(parts[0], pivotsBase) : NaN;
                 const option = parts[1] || '';
                 const ticked = parts[2] === '1' ? 1 : 0;
-                pivArr.push([
-                    getName(pokemonNames, pIdx),
-                    option,
-                    ticked
-                ]);
+                pivArr.push([getName(pokemonNames, pIdx), option, ticked]);
             });
         }
 
@@ -428,7 +437,10 @@ function loadData() {
         const moveArr = [];
         if (movesStr) {
             movesStr.split(',').forEach(tmIdx => {
-                if (tmIdx !== '') moveArr.push(getName(tmNames, parseInt(tmIdx, movesBase)));
+                if (tmIdx !== '') {
+                    const idx = parseInt(tmIdx, movesBase);
+                    if (!isNaN(idx)) moveArr.push(getName(tmNames, idx));
+                }
             });
         }
 
@@ -452,7 +464,6 @@ function loadData() {
         if (!Array.isArray(data[k])) data[k] = [];
     });
 
-    // The rest of loadData remains unchanged...
     // Load Pokémon tables (center, north, west, east)
     ['c', 'n', 'w', 'e'].forEach((key, idx) => {
         const area = ['center', 'north', 'west', 'east'][idx];
@@ -570,16 +581,20 @@ function compactDataForSharing(data) {
 
     // Areas: c, n, w, e
     const areas = ['c', 'n', 'w', 'e'];
-    const compactAreas = areas.map(k =>
-        (data[k] || [])
-            .filter(row => row[0])
-            .map(row => [
+    const compactAreas = areas.map((k, idx) => {
+        const areaRows = data[k] || [];
+        // Ensure we have the same number of rows as areaData[area]
+        const expectedRows = areaData[['center', 'north', 'west', 'east'][idx]].length;
+        const rows = Array(expectedRows).fill().map((_, i) => {
+            const row = areaRows[i] || ['', 0, 0]; // Default to empty row if missing
+            return [
                 idx36(pokemonNames, row[0]), // Pokémon index in base-36
                 row[1] ? 1 : '',
                 row[2] ? 1 : ''
-            ].join('|'))
-            .join(';')
-    );
+            ].join('|');
+        });
+        return rows.join(';');
+    });
     // Prefix non-empty with 'b36:'
     compactAreas.forEach((str, i) => {
         if (str) compactAreas[i] = 'b36:' + str;
@@ -587,7 +602,7 @@ function compactDataForSharing(data) {
 
     // Items: store index (base-36) and qty (base-36)
     let compactItems = (data.i || [])
-        .filter(item => item[1] && item[1] !== "0")
+        .filter(item => item[0] && item[1] && item[1] !== "0")
         .map(item => `${idx36(items, item[0])}|${Number(item[1]).toString(36)}`)
         .join(';');
     if (compactItems) compactItems = 'b36:' + compactItems;
@@ -608,9 +623,8 @@ function compactDataForSharing(data) {
 
     // Pivots: Pokémon index (base-36)|option|ticked
     let compactPivots = (data.p || [])
-        .filter(pivot => pivot[0])
         .map(pivot => [
-            idx36(pokemonNames, pivot[0]),
+            idx36(pokemonNames, pivot[0] || ''),
             pivot[1] || '',
             pivot[2] ? 1 : ''
         ].join('|'))
