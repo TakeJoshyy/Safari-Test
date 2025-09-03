@@ -104,7 +104,7 @@ function getSharedDataFromUrl() {
         initializePokemonTables();
         initializeItemsTable();
         initializeTmsTable();
-        initializeMoveTutorsTable(); // <-- Add this line
+        initializeMoveTutorsTable(); 
         initializeFavoritesTable();
         initializePivotsTable();
         loadData();
@@ -314,9 +314,145 @@ function saveData() {
 
 // Load data from local storage
 function loadData() {
-    const data = JSON.parse(localStorage.getItem('safariZoneData'));
+    let data = JSON.parse(localStorage.getItem('safariZoneData'));
     if (!data) return;
 
+    // If compact format (array), expand to object
+    if (Array.isArray(data)) {
+        // Helper to get name from index
+        const getName = (arr, idx) => arr[idx] || '';
+
+        // Areas: c, n, w, e
+        const areaKeys = ['c', 'n', 'w', 'e'];
+        const areas = {};
+        for (let i = 0; i < 4; i++) {
+            let areaStr = data[i] || '';
+            let base = 10;
+            if (areaStr.startsWith('b36:')) {
+                base = 36;
+                areaStr = areaStr.slice(4);
+            }
+            areas[areaKeys[i]] = [];
+            if (areaStr) {
+                areaStr.split(';').forEach((row) => {
+                    if (!row) return;
+                    const parts = row.split('|');
+                    const pIdx = parts[0] ? parseInt(parts[0], base) : NaN;
+                    const scout = parts[1] === '1' ? 1 : 0;
+                    const considering = parts[2] === '1' ? 1 : 0;
+                    areas[areaKeys[i]].push([
+                        getName(pokemonNames, pIdx),
+                        scout,
+                        considering
+                    ]);
+                });
+            }
+        }
+
+        // Items
+        let itemsStr = data[4] || '';
+        let itemsBase = 10;
+        if (itemsStr.startsWith('b36:')) {
+            itemsBase = 36;
+            itemsStr = itemsStr.slice(4);
+        }
+        const itemsArr = [];
+        if (itemsStr) {
+            itemsStr.split(';').forEach(itemStr => {
+                if (!itemStr) return;
+                const [iIdx, qty] = itemStr.split('|');
+                const itemIdx = parseInt(iIdx, itemsBase);
+                const itemQty = parseInt(qty, itemsBase);
+                itemsArr.push([getName(items, itemIdx), itemQty]);
+            });
+        }
+
+        // TMs
+        let tmsStr = data[5] || '';
+        let tmsBase = 10;
+        if (tmsStr.startsWith('b36:')) {
+            tmsBase = 36;
+            tmsStr = tmsStr.slice(4);
+        }
+        const tmsArr = [];
+        if (tmsStr) {
+            tmsStr.split(',').forEach(tmIdx => {
+                if (tmIdx !== '') tmsArr.push(getName(tmNames, parseInt(tmIdx, tmsBase)));
+            });
+        }
+
+        // Favorites
+        let favsStr = data[6] || '';
+        let favsBase = 10;
+        if (favsStr.startsWith('b36:')) {
+            favsBase = 36;
+            favsStr = favsStr.slice(4);
+        }
+        const favArr = [];
+        if (favsStr) {
+            favsStr.split(',').forEach(favIdx => {
+                if (favIdx !== '') favArr.push(getName(pokemonNames, parseInt(favIdx, favsBase)));
+            });
+        }
+
+        // Pivots
+        let pivotsStr = data[7] || '';
+        let pivotsBase = 10;
+        if (pivotsStr.startsWith('b36:')) {
+            pivotsBase = 36;
+            pivotsStr = pivotsStr.slice(4);
+        }
+        const pivArr = [];
+        if (pivotsStr) {
+            pivotsStr.split(';').forEach(pivotStr => {
+                if (!pivotStr) return;
+                const parts = pivotStr.split('|');
+                const pIdx = parts[0] ? parseInt(parts[0], pivotsBase) : NaN;
+                const option = parts[1] || '';
+                const ticked = parts[2] === '1' ? 1 : 0;
+                pivArr.push([
+                    getName(pokemonNames, pIdx),
+                    option,
+                    ticked
+                ]);
+            });
+        }
+
+        // Move Tutors
+        let movesStr = data[8] || '';
+        let movesBase = 10;
+        if (movesStr.startsWith('b36:')) {
+            movesBase = 36;
+            movesStr = movesStr.slice(4);
+        }
+        const moveArr = [];
+        if (movesStr) {
+            movesStr.split(',').forEach(tmIdx => {
+                if (tmIdx !== '') moveArr.push(getName(tmNames, parseInt(tmIdx, movesBase)));
+            });
+        }
+
+        // Rebuild object for compatibility with rest of code
+        data = {
+            c: areas.c,
+            n: areas.n,
+            w: areas.w,
+            e: areas.e,
+            i: itemsArr,
+            t: tmsArr,
+            f: favArr,
+            p: pivArr,
+            m: moveArr
+        };
+    }
+
+    // Ensure all keys exist, default to empty arrays if missing
+    const keys = ['c', 'n', 'w', 'e', 'i', 't', 'f', 'p', 'm'];
+    keys.forEach(k => {
+        if (!Array.isArray(data[k])) data[k] = [];
+    });
+
+    // The rest of loadData remains unchanged...
     // Load Pokémon tables (center, north, west, east)
     ['c', 'n', 'w', 'e'].forEach((key, idx) => {
         const area = ['center', 'north', 'west', 'east'][idx];
@@ -417,19 +553,97 @@ window.toggleCollapse = toggleCollapse;
 function clearData() {
     if (confirm('Are you sure you want to clear all data?')) {
         localStorage.removeItem('safariZoneData');
+        // Remove SharedData from URL
+        const url = new URL(location.href);
+        url.searchParams.delete('SharedData');
+        history.replaceState(null, '', url.toString());
         location.reload();
     }
 }
 
+function compactDataForSharing(data) {
+    // Helper to get index as base-36 string or empty
+    const idx36 = (arr, val) => {
+        const i = arr.indexOf(val);
+        return i === -1 ? '' : i.toString(36);
+    };
+
+    // Areas: c, n, w, e
+    const areas = ['c', 'n', 'w', 'e'];
+    const compactAreas = areas.map(k =>
+        (data[k] || [])
+            .filter(row => row[0])
+            .map(row => [
+                idx36(pokemonNames, row[0]), // Pokémon index in base-36
+                row[1] ? 1 : '',
+                row[2] ? 1 : ''
+            ].join('|'))
+            .join(';')
+    );
+    // Prefix non-empty with 'b36:'
+    compactAreas.forEach((str, i) => {
+        if (str) compactAreas[i] = 'b36:' + str;
+    });
+
+    // Items: store index (base-36) and qty (base-36)
+    let compactItems = (data.i || [])
+        .filter(item => item[1] && item[1] !== "0")
+        .map(item => `${idx36(items, item[0])}|${Number(item[1]).toString(36)}`)
+        .join(';');
+    if (compactItems) compactItems = 'b36:' + compactItems;
+
+    // TMs: store indices in base-36
+    let compactTms = (data.t || [])
+        .map(tm => idx36(tmNames, tm))
+        .filter(i => i !== '')
+        .join(',');
+    if (compactTms) compactTms = 'b36:' + compactTms;
+
+    // Favorites: Pokémon indices in base-36
+    let compactFavs = (data.f || [])
+        .map(fav => idx36(pokemonNames, fav))
+        .filter(i => i !== '')
+        .join(',');
+    if (compactFavs) compactFavs = 'b36:' + compactFavs;
+
+    // Pivots: Pokémon index (base-36)|option|ticked
+    let compactPivots = (data.p || [])
+        .filter(pivot => pivot[0])
+        .map(pivot => [
+            idx36(pokemonNames, pivot[0]),
+            pivot[1] || '',
+            pivot[2] ? 1 : ''
+        ].join('|'))
+        .join(';');
+    if (compactPivots) compactPivots = 'b36:' + compactPivots;
+
+    // Move Tutors: TM indices in base-36
+    let compactMoves = (data.m || [])
+        .map(tm => idx36(tmNames, tm))
+        .filter(i => i !== '')
+        .join(',');
+    if (compactMoves) compactMoves = 'b36:' + compactMoves;
+
+    // Final compact array
+    return [
+        ...compactAreas,    // 0-3: areas
+        compactItems,       // 4: items
+        compactTms,         // 5: tms
+        compactFavs,        // 6: favorites
+        compactPivots,      // 7: pivots
+        compactMoves        // 8: move tutors
+    ];
+}
+
 function shareData() {
     saveData();
-    const data = localStorage.getItem('safariZoneData');
-    if (!data) {
+    const rawData = localStorage.getItem('safariZoneData');
+    if (!rawData) {
         alert('No data to share!');
         return;
     }
-    
-    const compressed = LZString.compressToEncodedURIComponent(data);
+    const compact = compactDataForSharing(JSON.parse(rawData));
+    const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(compact));
     const url = `${location.origin}${location.pathname}?SharedData=${compressed}`;
     navigator.clipboard.writeText(url)
         .then(() => alert('Share link copied to clipboard!'))
