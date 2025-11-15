@@ -1,0 +1,107 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f0f0f0;
+}
+
+h1 {
+    text-align: center;
+    color: #333;
+}
+
+.container {
+    display: flex;
+    height: 100vh;
+    gap: 10px;
+}
+
+.zone {
+    padding: 10px;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+.zone-one {
+    width: 70%;
+    background-color: #e0e0e0;
+}
+
+.zone-two {
+    width: 30%;
+    background-color: #d0d0d0;
+}
+
+.area-box, .box {
+    margin-bottom: 20px;
+    background-color: white;
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+th, td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: left;
+}
+
+th {
+    background-color: #f5f5f5;
+}
+
+tr.considering-yes {
+    background-color: #ccffcc;
+}
+
+input, select {
+    box-sizing: border-box;
+    padding: 5px;
+}
+
+.scout-checkbox {
+    cursor: pointer;
+}
+
+.datalist-container {
+    position: relative;
+}
+
+.datalist-container input {
+    width: 100%;
+}
+
+button {
+    display: block;
+    margin: 20px auto;
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+.collapse-btn {
+    float: right;
+    font-size: 16px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #007bff;
+    margin-left: 10px;
+}
+
+.collapsed > *:not(h2) {
+    display: none;
+}
