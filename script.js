@@ -2,7 +2,7 @@ let pokemonNames = [];
 let tmNames = [];
 
 const client = new StreamerbotClient();
-const safariName = "SafariShare";
+const safariName = "6cb5376f-5008-4037-8510-1e007045b521";
 
 const areaData = {
     center: [
@@ -666,5 +666,5 @@ function shareData() {
     navigator.clipboard.writeText(url)
         .then(() => alert('Share link copied to clipboard!'))
         .catch(() => alert('Could not copy link.'));
-    client.executeCodeTrigger(safariName, {url});
+    client.doAction(safariName, {url});
 }
